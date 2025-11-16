@@ -105,7 +105,6 @@ def send_otp(receiver, otp_code):
 
     print(f"OTP was sent for email: {receiver}!")
 
-@shared_task
 def upload_image(file):
     file_name = randomX.randomFileName()
     ext = os.path.splitext(file.name)[1]
