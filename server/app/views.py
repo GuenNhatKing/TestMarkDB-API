@@ -1,6 +1,3 @@
-from celery.result import AsyncResult
-from django.shortcuts import render
-from django.db.models import Count
 from rest_framework import generics, status, viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -13,6 +10,7 @@ from app import randomX
 from datetime import datetime, timedelta
 import time
 from django.http import HttpResponse, Http404
+from django.db import transaction
 
 class RegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
@@ -20,11 +18,10 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = UserRegisterSerializer
 
 class ExamViewSet(viewsets.ModelViewSet):
-    # permission_classes = [IsAuthenticated, IsVerificated]
+    permission_classes = [IsAuthenticated, IsVerificated]
     serializer_class = ExamSerializer
-
     def get_queryset(self):
-        queryset = Exam.objects.filter(user=self.request.user).annotate(paper_count=Count('exampaper'))
+        queryset = Exam.objects.filter(user=self.request.user)
         return queryset
 
     def perform_create(self, serializer):
@@ -32,57 +29,91 @@ class ExamViewSet(viewsets.ModelViewSet):
 
 class ExamPaperViewSet(viewsets.ModelViewSet):
     serializer_class = ExamPaperSerializer
-
     def get_queryset(self):
-        exam = Exam.objects.get(pk=self.kwargs['exam_pk'])
-        return ExamPaper.objects.filter(exam=exam)
+        exam_id = self.kwargs.get('exam_pk')
+        return ExamPaper.objects.filter(exam_id=exam_id)
 
     def perform_create(self, serializer):
-        exam = Exam.objects.get(pk=self.kwargs['exam_pk'])
-        serializer.save(exam=exam)
+        exam_id = self.kwargs.get('exam_pk')
+        exam = Exam.objects.filter(pk=exam_id).first()
+        if not exam:
+            raise Http404("Exam not found")
+        serializer.save(exam_id=exam_id)
 
 class ExamAnswerViewSet(viewsets.ModelViewSet):
     serializer_class = ExamAnswerSerializer
-
     def get_queryset(self):
-        exam_paper = ExamPaper.objects.get(pk=self.kwargs['exam_paper_pk'])
-        return ExamAnswer.objects.filter(exam_paper=exam_paper)
+        exam_paper_id = self.kwargs.get('exam_paper_pk')
+        return ExamAnswer.objects.filter(exam_paper_id=exam_paper_id)
 
     def perform_create(self, serializer):
-        exam_paper = ExamPaper.objects.get(pk=self.kwargs['exam_paper_pk'])
-        serializer.save(exam_paper=exam_paper)
+        exam_paper_id = self.kwargs.get('exam_paper_pk')
+        exam_paper = ExamPaper.objects.filter(pk=exam_paper_id).first()
+        if not exam_paper:
+            raise Http404("ExamPaper not found")
+        serializer.save(exam_paper_id=exam_paper_id)
     
 class ExamineeViewSet(viewsets.ModelViewSet):
     serializer_class = ExamineeSerializer
-
     def get_queryset(self):
-        queryset = Examinee.objects.filter(user=self.request.user)
-        return queryset
+        return Examinee.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
 class ExamineeRecordViewSet(viewsets.ModelViewSet):
     serializer_class = ExamineeRecordSerializer
-
     def get_queryset(self):
-        exam = Exam.objects.get(pk=self.kwargs['exam_pk'])
-        return ExamineeRecord.objects.filter(exam=exam)
+        exam_id = self.kwargs.get('exam_pk')
+        return ExamineeRecord.objects.filter(exam_id=exam_id)
 
     def perform_create(self, serializer):
-        exam = Exam.objects.get(pk=self.kwargs['exam_pk'])
-        serializer.save(exam=exam)
+        exam_id = self.kwargs.get('exam_pk')
+        exam = Exam.objects.filter(pk=exam_id).first()
+        if not exam:
+            raise Http404("Exam not found")
+        serializer.save(exam_id=exam_id)
 
-class Examinee_RecordViewSet(viewsets.ModelViewSet):
-    serializer_class = ExamineeRecordSerializer
+class ExamineeRecordDetailView(APIView):
+    serializer_class = ExamineeRecordDetailSerializer
+    def get(self, request, examinee_id):
+        examinee = Examinee.objects.filter(pk=examinee_id).first()
+        if not examinee:
+            return Response({"detail": "Examinee not found"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = ExamineeRecordDetailSerializer(examinee)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
+# POST ExamPaper's Answer using JSON
+class ExamPaperBatchAnswerView(APIView):
+    serializer_class = ExamPaperBatchAnswerSerializer
+    def post(self, request, exam_paper_pk):
+        exam_paper = ExamPaper.objects.filter(pk=exam_paper_pk).first()
+        if not exam_paper:
+            return Response({"detail": "ExamPaper not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = ExamPaperBatchAnswerSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        answers = serializer.validated_data['answers']
+
+        with transaction.atomic():
+            for ans in answers:
+                question_number = ans.get('question_number')
+                answer_number = ans.get('answer_number')
+                exam_answer = ExamAnswer.objects.filter(exam_paper=exam_paper, question_number=question_number).first()
+                if exam_answer:
+                    exam_answer.answer_number = answer_number
+                    exam_answer.save()
+                    continue
+                exam_answer = ExamAnswer(exam_paper=exam_paper, question_number=question_number, answer_number=answer_number)
+                exam_answer.save()
+
+        return Response({"detail": "Answers saved successfully"}, status=status.HTTP_201_CREATED)
+
+class ExamineeResultViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = ExamineeResultSerializer
     def get_queryset(self):
-        examinee = Examinee.objects.get(pk=self.kwargs['examinee_pk'])
-        return ExamineeRecord.objects.filter(examinee=examinee)
-
-    def perform_create(self, serializer):
-        examinee = Examinee.objects.get(pk=self.kwargs['examinee_pk'])
-        serializer.save(examinee=examinee)
+        examineeRecord = self.kwargs.get('examinee_record_pk')
+        return ExamineeRecord.objects.filter(pk=examineeRecord)
 
 class SendOTPForEmailVerify(APIView):
     def post(self, request):
@@ -152,16 +183,6 @@ class VerifyEmail(APIView):
         user.save()
         action_request.delete()
         return Response({"detail": "Xác thực email thành công"}, status=status.HTTP_200_OK)
-    
-class ImageUrl(APIView):
-    def get(self, request):
-        serializer = ImageUrlSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        image_name = serializer.validated_data['image_name']
-        url = get_image_url(key=image_name)
-
-        return Response(url, status=status.HTTP_200_OK)
 
 class CameraStream(APIView):
     permission_classes = []
@@ -204,13 +225,76 @@ class ImageProcess(APIView):
         imageProcessSerializer = ImageProcessSerializer(data=request.data)
         imageProcessSerializer.is_valid(raise_exception=True)
 
-        exam_id = imageProcessSerializer.validated_data.get('exam', None)
-        examinee_id = imageProcessSerializer.validated_data.get('examinee', None)
-        examineeRecord = ExamineeRecord.objects.filter(exam_id=exam_id, examinee_id=examinee_id).first() if exam_id and examinee_id else None
+        exam_id = request.data.get('exam', None)
+        examinee_id = request.data.get('examinee', None)
+        exam = Exam.objects.filter(pk=exam_id).first() if exam_id else None
+        examinee = Examinee.objects.filter(pk=examinee_id).first() if examinee_id else None
+
+        examineeRecord = ExamineeRecord.objects.filter(exam=exam, examinee=examinee).first() if exam and examinee else None
+        if not examineeRecord:
+            return Response({"detail": "Không tìm thấy bản ghi thí sinh"}, status=status.HTTP_400_BAD_REQUEST)
+        
         image_name = examineeRecord.img_before_process if examineeRecord else None
         if not image_name:
             return Response({"detail": "Không tìm thấy hình ảnh để xử lý"}, status=status.HTTP_400_BAD_REQUEST)
-
+        
         result = process_image(image_name)
+        if not result:
+            return Response({"detail": "Xử lý hình ảnh thất bại"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
         return Response(result, status=200)
+    
+class ImageProcessSave(APIView):
+    def post(self, request):
+        # Nhận result của ImageProcess (sau khi client xác nhận và chỉnh sửa nếu cần)
+        serializer = ImageProcessSaveSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        exam_id = request.data.get('exam', None)
+        examinee_id = request.data.get('examinee', None)
+        exam = Exam.objects.filter(pk=exam_id).first() if exam_id else None
+        examinee = Examinee.objects.filter(pk=examinee_id).first() if examinee_id else None
+        result = serializer.validated_data.get('result', {})
+
+        examineeRecord = ExamineeRecord.objects.filter(exam=exam, examinee=examinee, examinee_code=result.get('sbd', None)).first() if exam and examinee else None
+        if not examineeRecord:
+            return Response({"detail": "Không tìm thấy bản ghi thí sinh"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Lấy đề thi từ ExamPaper
+        exam_paper = ExamPaper.objects.filter(exam=exam, exam_paper_code=result.get('made', None)).first()
+        if not exam_paper:
+            return Response({"detail": "Không tìm thấy đề thi"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Lấy đáp án đúng từ ExamAnswer
+        correct_answers = ExamAnswer.objects.filter(exam_paper=exam_paper)
+        correct_answer_dict = {ans.question_number: ans.answer_number for ans in correct_answers}
+
+        # Kiểm tra và lưu đáp án vào ExamineePaper
+        with transaction.atomic():
+            correct_count = 0
+            for q_num_str, ans_char in result.get('answers', {}).items():
+                question_number = int(q_num_str)
+                answer_number = ord(ans_char) - ord('A') if ans_char != '?' else 0
+                mark_result = False
+                if question_number in correct_answer_dict and answer_number == correct_answer_dict[question_number]:
+                    correct_count += 1
+                    mark_result = True
+                axaminee_answer = ExamineePaper.objects.filter(exam_paper=exam_paper, examinee=examinee, question_number=question_number).first()
+                if axaminee_answer:
+                    axaminee_answer.answer_number = answer_number
+                    axaminee_answer.mark_result = mark_result
+                    axaminee_answer.save()
+                    continue
+                examinee_answer = ExamineePaper(exam_paper=exam_paper, examinee=examinee, question_number=question_number, answer_number=answer_number, mark_result=mark_result)
+                examinee_answer.save()
+
+            # Tính điểm
+            score = (correct_count / exam_paper.number_of_questions) * 10 if exam_paper.number_of_questions > 0 else 0
+            
+            # Cập nhật ExamineeRecord
+            if examineeRecord:
+                examineeRecord.score = score
+                examineeRecord.save()
+
+        return Response({"detail": "Lưu kết quả bài thi thành công"}, status=status.HTTP_200_OK)
         

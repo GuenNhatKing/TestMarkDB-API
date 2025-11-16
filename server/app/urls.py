@@ -19,24 +19,23 @@ exam_answer_router.register('Answers', ExamAnswerViewSet, basename='exam_answer'
 exam_record_router = routers.NestedSimpleRouter(router, 'Exams', lookup='exam')
 exam_record_router.register('ExamineeRecords', ExamineeRecordViewSet, basename='examinee_record')
 
-examinee_record_router = routers.NestedSimpleRouter(router, 'Examinees', lookup='examinee')
-examinee_record_router.register('ExamineeRecords', Examinee_RecordViewSet, basename='examinee_record2')
-
 urlpatterns = [
-    path("api/Register", RegisterView.as_view(), name="Register"),
+    path("api/Register/", RegisterView.as_view(), name="Register"),
     
-    path("api/SendOTPForEmailVerify", SendOTPForEmailVerify.as_view(), name="SendOTPForEmailVerify"),
-    path("api/VerifyOTP", VerifyOTP.as_view(), name="VerifyOTP"),
-    path("api/VerifyEmail", VerifyEmail.as_view(), name="VerifyEmail"),
-    path("api/ChangePassword", ChangePassword.as_view(), name="ChangePassword"),
+    path("api/SendOTPForEmailVerify/", SendOTPForEmailVerify.as_view(), name="SendOTPForEmailVerify"),
+    path("api/VerifyOTP/", VerifyOTP.as_view(), name="VerifyOTP"),
+    path("api/VerifyEmail/", VerifyEmail.as_view(), name="VerifyEmail"),
+    path("api/ChangePassword/", ChangePassword.as_view(), name="ChangePassword"),
     
-    path("api/ImageUrl", ImageUrl.as_view(), name="GetImageUrl"),
-    path("api/CameraStream/<str:id>", CameraStream.as_view(), name="CameraStream"),
-    path("api/ImageProcess", ImageProcess.as_view(), name="ImageProcess"),
+    path("api/CameraStream/<str:id>/", CameraStream.as_view(), name="CameraStream"),
+    path("api/ImageProcess/", ImageProcess.as_view(), name="ImageProcess"),
+    path("api/ImageProcessSave/", ImageProcessSave.as_view(), name="ImageProcessSave"),
+    path("api/Examinee/<int:examinee_id>/RecordsDetail/", ExamineeRecordDetailView.as_view(), name="ExamineeRecordDetail"),
+    path("api/ExamineeRecords/<int:examinee_record_pk>/Result/", ExamineeResultViewSet.as_view({'get': 'list'}), name="ExamineeResult"),
+    path("api/ExamPapers/<int:exam_paper_pk>/BatchAnswer/", ExamPaperBatchAnswerView.as_view(), name="ExamPaperBatchAnswer"),
 
     path("api/", include(router.urls)),
     path("api/", include(exam_paper_router.urls)),
     path("api/", include(exam_answer_router.urls)),
     path("api/", include(exam_record_router.urls)),
-    path("api/", include(examinee_record_router.urls)),
 ]
