@@ -309,7 +309,7 @@ class No_Le_AI:
         best_info = None
         for k in range(4):
             angle = (k * 90) % 360
-            print("angle: ", angle)
+            # print("angle: ", angle)
             img_rot = rotate_by_90(img0, k)
 
             angle_dir = os.path.join(OUT_DIR, f"angle_{angle:03d}")
@@ -332,12 +332,12 @@ class No_Le_AI:
                 continue
             
             sbd  = read_sbd(sbd_region[0]["crop"].copy())
-            if sbd:
-                print("Số báo danh: ", sbd)
+            # if sbd:
+            #     print("Số báo danh: ", sbd)
 
             made  = read_made(made_region[0]["crop"].copy())
-            if made:
-                print("Mã đề: ", made)
+            # if made:
+            #     print("Mã đề: ", made)
 
             answers_region = sorted(answers_region, key=lambda e: e["box"][1])
             answers  = read_answer(answers_region)
@@ -350,7 +350,6 @@ class No_Le_AI:
             else:
                 answers_dict = None
             result_json = {
-                "angle": angle,
                 "sbd": sbd,
                 "made": made,
                 "answers": answers_dict,
