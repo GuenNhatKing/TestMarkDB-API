@@ -350,9 +350,9 @@ class No_Le_AI:
             else:
                 answers_dict = None
             result_json = {
-                "sbd": sbd if sbd else None,
-                "made": made if made else None,
                 "angle": angle,
+                "sbd": sbd,
+                "made": made,
                 "answers": answers_dict,
             }
             
