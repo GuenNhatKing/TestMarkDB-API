@@ -28,17 +28,7 @@ class Exam(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.exam_date})"
-
-class ExamineeRecord(models.Model):
-    exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
-    examinee = models.ForeignKey(Examinee, on_delete=models.CASCADE)
-    score = models.FloatField(null=True)
-    img_before_process = models.CharField(max_length=255, null=True)
-    img_after_process = models.CharField(max_length=255, null=True)
     
-    def __str__(self):
-        return f"{self.examinee.name} - {self.exam.name}: {self.score}"
-
 class ExamPaper(models.Model):
     exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
     exam_paper_code = models.CharField(max_length=6)
@@ -46,6 +36,16 @@ class ExamPaper(models.Model):
     
     def __str__(self):
         return f"{self.exam.name} - Paper {self.exam_paper_code}"
+
+class ExamineeRecord(models.Model):
+    exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
+    examinee = models.ForeignKey(Examinee, on_delete=models.CASCADE)
+    examinee_code = models.CharField(max_length=6)
+    score = models.FloatField(null=True)
+    img_before_process = models.CharField(max_length=255, null=True)
+    
+    def __str__(self):
+        return f"{self.examinee.name} - {self.exam.name}: {self.score}"
 
 class ExamAnswer(models.Model):
     exam_paper = models.ForeignKey(ExamPaper, on_delete=models.CASCADE)
