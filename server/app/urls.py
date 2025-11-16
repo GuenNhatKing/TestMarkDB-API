@@ -22,10 +22,11 @@ exam_record_router.register('ExamineeRecords', ExamineeRecordViewSet, basename='
 urlpatterns = [
     path("api/Register/", RegisterView.as_view(), name="Register"),
     
-    path("api/SendOTPForEmailVerify/", SendOTPForEmailVerify.as_view(), name="SendOTPForEmailVerify"),
+    path("api/SendOTPForVerify/", SendOTPForVerify.as_view(), name="SendOTPForVerify"),
     path("api/VerifyOTP/", VerifyOTP.as_view(), name="VerifyOTP"),
     path("api/VerifyEmail/", VerifyEmail.as_view(), name="VerifyEmail"),
     path("api/ChangePassword/", ChangePassword.as_view(), name="ChangePassword"),
+    path("api/PasswordReset/", PasswordReset.as_view(), name="PasswordReset"),
     
     path("api/CameraStream/<str:id>/", CameraStream.as_view(), name="CameraStream"),
     path("api/ImageProcess/", ImageProcess.as_view(), name="ImageProcess"),

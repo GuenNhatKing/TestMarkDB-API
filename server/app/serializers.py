@@ -177,6 +177,10 @@ class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True)
 
+class PasswordResetSerializer(serializers.Serializer):
+    token = serializers.CharField(max_length=24)
+    new_password = serializers.CharField(required=True)
+
 class ImageProcessSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExamineeRecord

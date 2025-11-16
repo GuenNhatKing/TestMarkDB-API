@@ -54,6 +54,7 @@ class ExamAnswerViewSet(viewsets.ModelViewSet):
         serializer.save(exam_paper_id=exam_paper_id)
     
 class ExamineeViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated, IsVerificated]
     serializer_class = ExamineeSerializer
     def get_queryset(self):
         return Examinee.objects.filter(user=self.request.user)
@@ -115,18 +116,24 @@ class ExamineeResultViewSet(viewsets.ReadOnlyModelViewSet):
         examineeRecord = self.kwargs.get('examinee_record_pk')
         return ExamineeRecord.objects.filter(pk=examineeRecord)
 
-class SendOTPForEmailVerify(APIView):
+ACTIONS = ['email_verify', 'password_reset']
+
+class SendOTPForVerify(APIView):
     def post(self, request):
+        action = request.data.get('action', '')
+        if action not in ACTIONS:
+            return Response({"detail": "Hành động không hợp lệ", "allowed_actions": ACTIONS}, status=status.HTTP_400_BAD_REQUEST)
+
         action_request = ActionRequest.objects.filter(
             user = request.user,
             available = False,
             expired_at__gt = datetime.now(),
-            action='email_verify'
+            action=action
         ).first()
 
         if action_request is None:
             token = ''.join(map(str, [randomX.base62[x] for x in randomX.randomX(24, 0, 62)]))
-            action_request = ActionRequest(user=request.user, token=token, action='email_verify', expired_at=datetime.now() + timedelta(minutes=5), available=False)
+            action_request = ActionRequest(user=request.user, token=token, action=action, expired_at=datetime.now() + timedelta(minutes=5), available=False)
             action_request.save()
 
         otp_code = randomX.randomOTP()
@@ -184,8 +191,44 @@ class VerifyEmail(APIView):
         action_request.delete()
         return Response({"detail": "Xác thực email thành công"}, status=status.HTTP_200_OK)
 
+class ChangePassword(APIView):
+    permission_classes = [IsAuthenticated, IsVerificated]
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        old_password = serializer.validated_data['old_password']
+        new_password = serializer.validated_data['new_password']
+
+        user = request.user
+        if not user.check_password(old_password):
+            return Response({"detail": "Mật khẩu cũ không đúng"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user.set_password(new_password)
+        user.save()
+        return Response({"detail": "Đổi mật khẩu thành công"}, status=status.HTTP_200_OK)
+
+class PasswordReset(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request):
+        serializer = PasswordResetSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        token = serializer.validated_data['token']
+        new_password = serializer.validated_data['new_password']
+
+        action_request = ActionRequest.objects.filter(token=token, available=True, expired_at__gt = datetime.now()).first()
+        if action_request is None:
+            return Response({"detail": "Token không hợp lệ"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user = action_request.user
+        user.set_password(new_password)
+        user.save()
+        action_request.delete()
+        return Response({"detail": "Đặt lại mật khẩu thành công"}, status=status.HTTP_200_OK)
+
 class CameraStream(APIView):
-    permission_classes = []
+    permission_classes = [AllowAny]
     def get(self, request, id):
         data, ts = get_camera_stream(id)
         if not data:
@@ -203,23 +246,6 @@ class CameraStream(APIView):
         update_camera_stream(id, data, ts)
         return Response({"ok": True, "id": id, "timestamp": ts}, status=status.HTTP_200_OK)
 
-class ChangePassword(APIView):
-    def post(self, request):
-        serializer = ChangePasswordSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        old_password = serializer.validated_data['old_password']
-        new_password = serializer.validated_data['new_password']
-
-        user = request.user
-        if not user.check_password(old_password):
-            return Response({"detail": "Mật khẩu cũ không đúng"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        user.set_password(new_password)
-        user.save()
-
-        return Response({"detail": "Đổi mật khẩu thành công"}, status=status.HTTP_200_OK)
-    
 class ImageProcess(APIView):
     def post(self, request):
         imageProcessSerializer = ImageProcessSerializer(data=request.data)
