@@ -259,14 +259,20 @@ class ImageProcess(APIView):
         examinee_id = request.data.get('examinee', None)
         exam = Exam.objects.filter(pk=exam_id).first() if exam_id else None
         examinee = Examinee.objects.filter(pk=examinee_id).first() if examinee_id else None
-
+        
+        image = imageProcessSerializer.validated_data.get('image', None)
+        # Tải ảnh lên S3
+        image_name = upload_image(image) if image else None
         examineeRecord = ExamineeRecord.objects.filter(exam=exam, examinee=examinee).first() if exam and examinee else None
+
         if not examineeRecord:
             return Response({"detail": "Không tìm thấy bản ghi thí sinh"}, status=status.HTTP_400_BAD_REQUEST)
         
-        image_name = examineeRecord.img_before_process if examineeRecord else None
         if not image_name:
             return Response({"detail": "Không tìm thấy hình ảnh để xử lý"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        examineeRecord.img_before_process = image_name
+        examineeRecord.save()        
         
         result = process_image(image_name)
         if not result:
@@ -282,6 +288,7 @@ class ImageProcessSave(APIView):
 
         exam_id = request.data.get('exam', None)
         examinee_id = request.data.get('examinee', None)
+
         exam = Exam.objects.filter(pk=exam_id).first() if exam_id else None
         examinee = Examinee.objects.filter(pk=examinee_id).first() if examinee_id else None
         result = serializer.validated_data.get('result', {})

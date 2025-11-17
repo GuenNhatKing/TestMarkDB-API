@@ -95,13 +95,13 @@ class ImageUrlSerializer(serializers.Serializer):
     image_name = serializers.CharField(required=True)
 
 class ExamineeRecordSerializer(serializers.ModelSerializer):
-    img_before_process_input = serializers.ImageField(write_only=True, required=False)
     img_before_process = serializers.CharField(read_only=True) 
     class Meta:
         model = ExamineeRecord
         fields = '__all__'
         extra_kwargs = {
             'exam': {'read_only': True}, 
+            'img_before_process': {'read_only': True}
         }
 
     def to_representation(self, instance):
@@ -112,21 +112,7 @@ class ExamineeRecordSerializer(serializers.ModelSerializer):
             get_image_url(raw) if raw else None
         )
         return data
-    
-    def create(self, validated_data):
-        img_before_file = validated_data.pop("img_before_process_input", None)
         
-        if img_before_file:
-            validated_data["img_before_process"] = upload_image(file=img_before_file) 
-        return super().create(validated_data)
-    
-    def update(self, instance, validated_data):
-        img_before_file = validated_data.pop("img_before_process_input", None)
-
-        if img_before_file:
-            instance.img_before_process = upload_image(file=img_before_file)
-        return super().update(instance, validated_data)
-    
 class ExamineeRecordDetailSerializer(serializers.ModelSerializer):
     examinee_id = serializers.IntegerField(source='id', read_only=True)
     examinee_name = serializers.CharField(source='name', read_only=True)
@@ -187,6 +173,7 @@ class PasswordResetSerializer(serializers.Serializer):
     new_password = serializers.CharField(required=True)
 
 class ImageProcessSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(write_only=True, required=True)
     class Meta:
         model = ExamineeRecord
         fields = '__all__'

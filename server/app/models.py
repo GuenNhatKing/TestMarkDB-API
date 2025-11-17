@@ -84,6 +84,4 @@ class OTPRequest(models.Model):
 
     def __str__(self):
         return f'{self.request.user.email} ({self.code})'
-# TODO: Thêm count để đếm số lượng exampaper trong exam
-# TODO: Loại bỏ trường Duration trong Exam
-    
+   
