@@ -117,6 +117,7 @@ class ExamineeResultViewSet(viewsets.ReadOnlyModelViewSet):
         return ExamineeRecord.objects.filter(pk=examineeRecord)
 
 class SendOTPForVerify(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         serializer = SendOTPForVerifySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -148,6 +149,7 @@ class SendOTPForVerify(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
 class VerifyOTP(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         serializer = OTPVerifySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -176,6 +178,7 @@ class VerifyOTP(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class VerifyEmail(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         serializer = EmailVerifySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -209,7 +212,7 @@ class ChangePassword(APIView):
         user.save()
         return Response({"detail": "Đổi mật khẩu thành công"}, status=status.HTTP_200_OK)
 
-class PasswordReset(APIView):
+class PasswordReset(APIView):   
     permission_classes = [AllowAny]
     def post(self, request):
         serializer = PasswordResetSerializer(data=request.data)
