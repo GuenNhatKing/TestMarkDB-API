@@ -76,6 +76,11 @@ class RequestSerializer(serializers.ModelSerializer):
         model = ActionRequest
         fields = ('user', 'token', 'action', 'available', 'expired_at')
 
+ALLOWED_ACTIONS = ['email_verify', 'password_reset']
+class SendOTPForVerifySerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+    action = serializers.ChoiceField(choices=ALLOWED_ACTIONS, required=True)
+
 class OTPVerifySerializer(serializers.Serializer):
     token = serializers.CharField(max_length=24)
     code = serializers.CharField(max_length=4)

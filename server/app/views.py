@@ -116,16 +116,17 @@ class ExamineeResultViewSet(viewsets.ReadOnlyModelViewSet):
         examineeRecord = self.kwargs.get('examinee_record_pk')
         return ExamineeRecord.objects.filter(pk=examineeRecord)
 
-ACTIONS = ['email_verify', 'password_reset']
-
 class SendOTPForVerify(APIView):
     def post(self, request):
-        action = request.data.get('action', '')
-        if action not in ACTIONS:
-            return Response({"detail": "Hành động không hợp lệ", "allowed_actions": ACTIONS}, status=status.HTTP_400_BAD_REQUEST)
-
+        serializer = SendOTPForVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+        action = serializer.validated_data['action']
+        user = CustomUser.objects.filter(email=email).first()
+        if not user:
+            return Response({"detail": "Email không tồn tại"}, status=status.HTTP_400_BAD_REQUEST)
         action_request = ActionRequest.objects.filter(
-            user = request.user,
+            user = user,
             available = False,
             expired_at__gt = datetime.now(),
             action=action
@@ -133,7 +134,7 @@ class SendOTPForVerify(APIView):
 
         if action_request is None:
             token = ''.join(map(str, [randomX.base62[x] for x in randomX.randomX(24, 0, 62)]))
-            action_request = ActionRequest(user=request.user, token=token, action=action, expired_at=datetime.now() + timedelta(minutes=5), available=False)
+            action_request = ActionRequest(user=user, token=token, action=action, expired_at=datetime.now() + timedelta(minutes=5), available=False)
             action_request.save()
 
         otp_code = randomX.randomOTP()
