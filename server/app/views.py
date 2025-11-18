@@ -280,7 +280,11 @@ class ImageProcess(APIView):
         result = process_image(image_name)
         if not result:
             return Response({"detail": "Xử lý hình ảnh thất bại"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+        # Lưu tên ảnh đã xử lý
+        examineeRecord.img_after_process = result.get('processed_image', None)
+        examineeRecord.save()
+        # Cập nhật URL ảnh trong kết quả trả về
+        result["image_processed"] = get_image_url(examineeRecord.img_after_process) if examineeRecord.img_after_process else None
         return Response(result, status=200)
     
 class ImageProcessSave(APIView):
@@ -311,9 +315,6 @@ class ImageProcessSave(APIView):
 
         # Kiểm tra và lưu đáp án vào ExamineePaper
         with transaction.atomic():
-            # Lưu tên ảnh đã xử lý
-            examineeRecord.img_after_process = result.get('processed_image', None)
-            examineeRecord.save()
             correct_count = 0
             for q_num_str, ans_char in result.get('answers', {}).items():
                 question_number = int(q_num_str)
@@ -338,6 +339,5 @@ class ImageProcessSave(APIView):
             if examineeRecord:
                 examineeRecord.score = score
                 examineeRecord.save()
-
         return Response({"detail": "Lưu kết quả bài thi thành công"}, status=status.HTTP_200_OK)
         

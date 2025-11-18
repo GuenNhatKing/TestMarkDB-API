@@ -96,12 +96,14 @@ class ImageUrlSerializer(serializers.Serializer):
 
 class ExamineeRecordSerializer(serializers.ModelSerializer):
     img_before_process = serializers.CharField(read_only=True) 
+    img_after_process = serializers.CharField(read_only=True) 
     class Meta:
         model = ExamineeRecord
         fields = '__all__'
         extra_kwargs = {
             'exam': {'read_only': True}, 
-            'img_before_process': {'read_only': True}
+            'img_before_process': {'read_only': True},
+            'img_after_process': {'read_only': True}
         }
 
     def to_representation(self, instance):
@@ -110,6 +112,10 @@ class ExamineeRecordSerializer(serializers.ModelSerializer):
 
         data["img_before_process"] = (
             get_image_url(raw) if raw else None
+        )
+        processed = instance.img_after_process
+        data["img_after_process"] = (
+            get_image_url(processed) if processed else None
         )
         return data
         
@@ -157,6 +163,7 @@ class ExamineeRecordDetailSerializer(serializers.ModelSerializer):
                     "correct_answers": correct_answers,
                     "score": rec.score,
                     "img_before_process": get_image_url(rec.img_before_process) if rec.img_before_process else None,
+                    "img_after_process": get_image_url(rec.img_after_process) if rec.img_after_process else None,
                 }
             }
 

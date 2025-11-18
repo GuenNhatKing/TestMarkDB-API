@@ -1,3 +1,4 @@
+import io
 from celery import shared_task
 from email.mime.text import MIMEText
 from email.utils import formataddr
@@ -105,9 +106,8 @@ def send_otp(receiver, otp_code):
 
     print(f"OTP was sent for email: {receiver}!")
 
-def upload_image(file, file_name=None):
-    if not file_name:
-        file_name = randomX.randomFileName()
+def upload_image(file):
+    file_name = randomX.randomFileName()
     ext = os.path.splitext(file.name)[1]
     file.name = file_name + ext
     s3Image.upload_objfile(b2=s3Image.b2, bucket=s3Image.BUCKET_NAME, fileobj=file)
@@ -145,8 +145,11 @@ def process_image(local_name):
     result = ai.process(str(s3Image.BASE_DIR / "temporary" / local_name))
     # Tải ảnh sau khi xử lý ở BASE_DIR / AI / out / after.jpg lên S3
     out_image_path = s3Image.BASE_DIR / "AI" / "out" / "after.jpg"
-    out_image_name = "processed_" + local_name
-    upload_image(open(out_image_path, "rb"), file_name=out_image_name)
-    result["processed_image"] = out_image_name
+    with open(out_image_path, "rb") as f:
+        data = f.read()              
+        buf = io.BytesIO(data)
+        buf.seek(0)
+        buf.name = "after.jpg"
+        result['processed_image'] = upload_image(buf)
     remove_temporary_file(local_name)
     return result
