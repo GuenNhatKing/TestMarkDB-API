@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import *
-from .tasks import upload_image, get_image_url
+from .tasks import get_image_url
 
 class UserRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -76,7 +76,10 @@ class RequestSerializer(serializers.ModelSerializer):
         model = ActionRequest
         fields = ('user', 'token', 'action', 'available', 'expired_at')
 
-ALLOWED_ACTIONS = ['email_verify', 'password_reset']
+ALLOWED_ACTIONS = (
+    ('email_verify', 'email_verify'),
+    ('password_reset', 'password_reset'),
+)
 class SendOTPForVerifySerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     action = serializers.ChoiceField(choices=ALLOWED_ACTIONS, required=True)
@@ -95,26 +98,26 @@ class ImageUrlSerializer(serializers.Serializer):
     image_name = serializers.CharField(required=True)
 
 class ExamineeRecordSerializer(serializers.ModelSerializer):
-    img_before_process = serializers.CharField(read_only=True) 
-    img_after_process = serializers.CharField(read_only=True) 
+    original_image = serializers.CharField(read_only=True) 
+    processed_image = serializers.CharField(read_only=True) 
     class Meta:
         model = ExamineeRecord
         fields = '__all__'
         extra_kwargs = {
             'exam': {'read_only': True}, 
-            'img_before_process': {'read_only': True},
-            'img_after_process': {'read_only': True}
+            'original_image': {'read_only': True},
+            'processed_image': {'read_only': True}
         }
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        raw = instance.img_before_process
+        raw = instance.original_image
 
-        data["img_before_process"] = (
+        data["original_image"] = (
             get_image_url(raw) if raw else None
         )
-        processed = instance.img_after_process
-        data["img_after_process"] = (
+        processed = instance.processed_image
+        data["processed_image"] = (
             get_image_url(processed) if processed else None
         )
         return data
@@ -162,8 +165,8 @@ class ExamineeRecordDetailSerializer(serializers.ModelSerializer):
                 "result": {
                     "correct_answers": correct_answers,
                     "score": rec.score,
-                    "img_before_process": get_image_url(rec.img_before_process) if rec.img_before_process else None,
-                    "img_after_process": get_image_url(rec.img_after_process) if rec.img_after_process else None,
+                    "original_image": get_image_url(rec.original_image) if rec.original_image else None,
+                    "processed_image": get_image_url(rec.processed_image) if rec.processed_image else None,
                 }
             }
 
@@ -183,19 +186,13 @@ class ImageProcessSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(write_only=True, required=True)
     class Meta:
         model = ExamineeRecord
-        fields = '__all__'
-        extra_kwargs = {
-            'examinee_code': {'read_only': True},
-        }
+        fields = ('image',)
 
 class ImageProcessSaveSerializer(serializers.Serializer):
     result = serializers.JSONField()
     class Meta:
         model = ExamineeRecord
-        fields = '__all__'
-        extra_kwargs = {
-            'examinee_code': {'read_only': True},
-        }
+        fields = ('exam', 'image')
 
 class ExamineeResultSerializer(serializers.ModelSerializer):
     result = serializers.SerializerMethodField()

@@ -9,7 +9,7 @@ from .tasks import *
 from app import randomX
 from datetime import datetime, timedelta
 import time
-from django.http import HttpResponse, Http404
+from django.http import Http404, StreamingHttpResponse
 from django.db import transaction
 
 class RegisterView(generics.CreateAPIView):
@@ -80,7 +80,7 @@ class ExamineeRecordDetailView(APIView):
     def get(self, request, examinee_id):
         examinee = Examinee.objects.filter(pk=examinee_id).first()
         if not examinee:
-            return Response({"detail": "Examinee not found"}, status=status.HTTP_404_NOT_FOUND)
+            raise Http404("Examinee not found")
         serializer = ExamineeRecordDetailSerializer(examinee)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -90,7 +90,7 @@ class ExamPaperBatchAnswerView(APIView):
     def post(self, request, exam_paper_pk):
         exam_paper = ExamPaper.objects.filter(pk=exam_paper_pk).first()
         if not exam_paper:
-            return Response({"detail": "ExamPaper not found"}, status=status.HTTP_404_NOT_FOUND)
+            raise Http404("ExamPaper not found")
         
         serializer = ExamPaperBatchAnswerSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -233,13 +233,24 @@ class PasswordReset(APIView):
 
 class CameraStream(APIView):
     permission_classes = [AllowAny]
+    def mjpeg_generator(self, id):
+        while True:
+            data, ts = get_camera_stream(id)
+            if data:
+                frame = (
+                    b"--testmarkdb\r\n"
+                    b"Content-Type: image/jpeg\r\n"
+                    b"Content-Length: " + f"{len(data)}".encode() + b"\r\n"
+                    b"\r\n" + data + b"\r\n"
+                )
+                yield frame
+            time.sleep(1) # 1 FPS
+
     def get(self, request, id):
-        data, ts = get_camera_stream(id)
-        if not data:
-            raise Http404("Không có ảnh cho ID này")
-        resp = HttpResponse(data, content_type="image/jpeg")
-        resp["X-Timestamp"] = str(ts or 0)
-        return resp
+        return StreamingHttpResponse(
+            self.mjpeg_generator(id),
+            content_type="multipart/x-mixed-replace; boundary=testmarkdb"
+        )
     
     def put(self, request, id):
         serializer = CameraStreamSerializer(data=request.data)
@@ -254,37 +265,25 @@ class ImageProcess(APIView):
     def post(self, request):
         imageProcessSerializer = ImageProcessSerializer(data=request.data)
         imageProcessSerializer.is_valid(raise_exception=True)
-
-        exam_id = request.data.get('exam', None)
-        examinee_id = request.data.get('examinee', None)
-        exam = Exam.objects.filter(pk=exam_id).first() if exam_id else None
-        examinee = Examinee.objects.filter(pk=examinee_id).first() if examinee_id else None
         
         image = imageProcessSerializer.validated_data.get('image', None)
         if not image:
             return Response({"detail": "Không tìm thấy hình ảnh để xử lý"}, status=status.HTTP_400_BAD_REQUEST)
 
-        examineeRecord = ExamineeRecord.objects.filter(exam=exam, examinee=examinee).first() if exam and examinee else None
-        if not examineeRecord:
-            return Response({"detail": "Không tìm thấy bản ghi thí sinh"}, status=status.HTTP_400_BAD_REQUEST)
+        # Lưu hình ảnh vào thư mục tạm thời
+        os.makedirs(s3Image.BASE_DIR / "temporary", exist_ok=True)
+        file_name = randomX.randomFileName()
+        ext = os.path.splitext(image.name)[1]
+        image.name = file_name + ext
+        local_image_path = s3Image.BASE_DIR / "temporary" / image.name
+        with open(local_image_path, "wb") as f:
+            f.write(image.read())  
         
-        # Tải ảnh lên S3
-        image_name = upload_image(image) if image else None
-        
-        if not image_name:
-            return Response({"detail": "Không thể tải ảnh lên"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        examineeRecord.img_before_process = image_name
-        examineeRecord.save()        
-        
-        result = process_image(image_name)
+        # Xử lý hình ảnh
+        result = process_image(image.name)
         if not result:
             return Response({"detail": "Xử lý hình ảnh thất bại"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        # Lưu tên ảnh đã xử lý
-        examineeRecord.img_after_process = result.get('processed_image', None)
-        examineeRecord.save()
-        # Cập nhật URL ảnh trong kết quả trả về
-        result["image_processed"] = get_image_url(examineeRecord.img_after_process) if examineeRecord.img_after_process else None
+        
         return Response(result, status=200)
     
 class ImageProcessSave(APIView):
@@ -292,15 +291,20 @@ class ImageProcessSave(APIView):
         # Nhận result của ImageProcess (sau khi client xác nhận và chỉnh sửa nếu cần)
         serializer = ImageProcessSaveSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         exam_id = request.data.get('exam', None)
-        examinee_id = request.data.get('examinee', None)
-
-        exam = Exam.objects.filter(pk=exam_id).first() if exam_id else None
-        examinee = Examinee.objects.filter(pk=examinee_id).first() if examinee_id else None
+        exam = Exam.objects.filter(pk=exam_id).first()
+        if not exam:
+            return Response({"detail": "Không tìm thấy kỳ thi"}, status=status.HTTP_400_BAD_REQUEST)
+        
         result = serializer.validated_data.get('result', {})
 
-        examineeRecord = ExamineeRecord.objects.filter(exam=exam, examinee=examinee, examinee_code=result.get('sbd', None)).first() if exam and examinee else None
+        student_ID = result.get('sbd', None)
+        examinee = Examinee.objects.filter(user=request.user, student_ID=student_ID).first() if student_ID else None
+        if not examinee:
+            return Response({"detail": "Không tìm thấy thí sinh"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        print(exam, examinee)
+        examineeRecord = ExamineeRecord.objects.filter(exam=exam, examinee=examinee).first() if exam and examinee else None
         if not examineeRecord:
             return Response({"detail": "Không tìm thấy bản ghi thí sinh"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -315,6 +319,22 @@ class ImageProcessSave(APIView):
 
         # Kiểm tra và lưu đáp án vào ExamineePaper
         with transaction.atomic():
+            # Tải ảnh trước và sau xử lý lên S3
+            before_image = result.get('original_image', None)
+            if before_image:
+                original_image_data = base64.b64decode(before_image)
+                original_image = io.BytesIO(original_image_data)
+                original_image.name = result.get('original_image_name', 'original_image.jpg')
+                examineeRecord.original_image = upload_image(original_image)
+            
+            processed_image = result.get('processed_image', None)
+            if processed_image:
+                processed_image_data = base64.b64decode(processed_image)
+                processed_image = io.BytesIO(processed_image_data)
+                processed_image.name = result.get('processed_image_name', 'processed_image.jpg')
+                examineeRecord.processed_image = upload_image(processed_image)
+            
+            # Lưu đáp án và đếm số câu đúng
             correct_count = 0
             for q_num_str, ans_char in result.get('answers', {}).items():
                 question_number = int(q_num_str)
@@ -339,5 +359,5 @@ class ImageProcessSave(APIView):
             if examineeRecord:
                 examineeRecord.score = score
                 examineeRecord.save()
+
         return Response({"detail": "Lưu kết quả bài thi thành công"}, status=status.HTTP_200_OK)
-        

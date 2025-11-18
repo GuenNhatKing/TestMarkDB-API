@@ -13,8 +13,13 @@ class CustomUser(AbstractUser):
 class Examinee(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     name = models.CharField(max_length=127)
-    student_ID = models.CharField(max_length=10, unique=True, null=True)
+    student_ID = models.CharField(max_length=6) # student_ID == Candidate number
     date_of_birth = models.DateField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'student_ID'], name='unique_examinee_per_user_student_ID')
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.date_of_birth})"
@@ -40,10 +45,9 @@ class ExamPaper(models.Model):
 class ExamineeRecord(models.Model):
     exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
     examinee = models.ForeignKey(Examinee, on_delete=models.CASCADE)
-    examinee_code = models.CharField(max_length=6)
     score = models.FloatField(null=True)
-    img_before_process = models.CharField(max_length=255, null=True)
-    img_after_process = models.CharField(max_length=255, null=True)
+    original_image = models.CharField(max_length=255, null=True)
+    processed_image = models.CharField(max_length=255, null=True)
     
     def __str__(self):
         return f"{self.examinee.name} - {self.exam.name}: {self.score}"

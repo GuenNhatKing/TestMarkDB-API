@@ -7,6 +7,7 @@ from pathlib import Path
 import environ
 from app import s3Image, randomX
 import os
+import base64
 from django.core.cache import cache
 from AI.ai import No_Le_AI
 
@@ -139,17 +140,19 @@ def remove_temporary_file(local_name):
     if os.path.exists(file_path):
         os.remove(file_path)
 
+OUT_IMAGE_PATH = s3Image.BASE_DIR / "AI" / "out" / "after.jpg"
 def process_image(local_name):
-    download_file(local_name, local_name) 
     ai = No_Le_AI()
-    result = ai.process(str(s3Image.BASE_DIR / "temporary" / local_name))
-    # Tải ảnh sau khi xử lý ở BASE_DIR / AI / out / after.jpg lên S3
-    out_image_path = s3Image.BASE_DIR / "AI" / "out" / "after.jpg"
-    with open(out_image_path, "rb") as f:
-        data = f.read()              
-        buf = io.BytesIO(data)
-        buf.seek(0)
-        buf.name = "after.jpg"
-        result['processed_image'] = upload_image(buf)
+    input_path = s3Image.BASE_DIR / "temporary" / local_name
+    result = ai.process(str(input_path))
+
+    with open(input_path, "rb") as f:
+        result['original_image'] = base64.b64encode(f.read()).decode('utf-8')
+        result['original_image_name'] = local_name
+
+    with open(OUT_IMAGE_PATH, "rb") as f:
+        result['processed_image'] = base64.b64encode(f.read()).decode('utf-8')
+        result['processed_image_name'] = "processed_image.jpg"
+
     remove_temporary_file(local_name)
     return result
