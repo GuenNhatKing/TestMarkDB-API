@@ -261,15 +261,18 @@ class ImageProcess(APIView):
         examinee = Examinee.objects.filter(pk=examinee_id).first() if examinee_id else None
         
         image = imageProcessSerializer.validated_data.get('image', None)
-        # Tải ảnh lên S3
-        image_name = upload_image(image) if image else None
-        examineeRecord = ExamineeRecord.objects.filter(exam=exam, examinee=examinee).first() if exam and examinee else None
+        if not image:
+            return Response({"detail": "Không tìm thấy hình ảnh để xử lý"}, status=status.HTTP_400_BAD_REQUEST)
 
+        examineeRecord = ExamineeRecord.objects.filter(exam=exam, examinee=examinee).first() if exam and examinee else None
         if not examineeRecord:
             return Response({"detail": "Không tìm thấy bản ghi thí sinh"}, status=status.HTTP_400_BAD_REQUEST)
         
+        # Tải ảnh lên S3
+        image_name = upload_image(image) if image else None
+        
         if not image_name:
-            return Response({"detail": "Không tìm thấy hình ảnh để xử lý"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Không thể tải ảnh lên"}, status=status.HTTP_400_BAD_REQUEST)
         
         examineeRecord.img_before_process = image_name
         examineeRecord.save()        
@@ -308,6 +311,9 @@ class ImageProcessSave(APIView):
 
         # Kiểm tra và lưu đáp án vào ExamineePaper
         with transaction.atomic():
+            # Lưu tên ảnh đã xử lý
+            examineeRecord.img_after_process = result.get('processed_image', None)
+            examineeRecord.save()
             correct_count = 0
             for q_num_str, ans_char in result.get('answers', {}).items():
                 question_number = int(q_num_str)

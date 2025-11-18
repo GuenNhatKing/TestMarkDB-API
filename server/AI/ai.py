@@ -16,16 +16,16 @@ BUBBLE_CLASSES = {0: "Filled", 1: "Unfilled"}
 REGION_COLOR = {"Answer_region": (255, 0, 0), "MaDe_region": (255, 255, 0), "SBD_region": (128, 0, 128)}
 BUBBLE_COLOR = {"Filled": (0, 255, 0), "Unfilled": (0, 0, 255)}
 
-OUT_DIR   = "out"
+OUT_DIR   = str(BASE_DIR / "AI/out")
 MAX_COLS_ANSWER = 4
 
 region_model = YOLO(REGION_MODEL)
 bubble_model = YOLO(BUBBLE_MODEL)
 
-# def clear_output_dir(path="out"):
-#     if os.path.exists(path):
-#         shutil.rmtree(path, ignore_errors=True)
-#     os.makedirs(path, exist_ok=True)
+def clear_output_dir(path="out"):
+    if os.path.exists(path):
+        shutil.rmtree(path, ignore_errors=True)
+    os.makedirs(path, exist_ok=True)
 
 def rotate_by_90(img, k):
     k = k % 4
@@ -129,7 +129,7 @@ def read_sbd(crop):
             # else: 
             #     cv2.rectangle(crop, (min_x + j * box_w, min_y + i * box_h), (min_x + (j + 1) * box_w, min_y + (i + 1) * box_h), (127, 127, 0), 1)
     # cv2.imwrite(os.path.join(angle_dir, "SBD.jpg"), crop)
-    return "".join(result)
+    return "".join(result), bubbles
 
 def read_made(crop):
     """
@@ -188,7 +188,7 @@ def read_made(crop):
             # else: 
             #     cv2.rectangle(crop, (min_x + j * box_w, min_y + i * box_h), (min_x + (j + 1) * box_w, min_y + (i + 1) * box_h), (127, 127, 0), 1)
     # cv2.imwrite(os.path.join(angle_dir, "MADE.jpg"), crop)
-    return "".join(result)
+    return "".join(result), bubbles
 
 def read_answer(answers_region):
     n_section = 1
@@ -226,15 +226,16 @@ def read_answer(answers_region):
         for b in bubbles:
             if abs(curr_b["box"][0] - b["box"][0]) > med_w * 2:
                 group_i += 1
-            groups.setdefault(group_i, []).append(b)
+            groups.setdefault(group_i, {"bubbles": [], "section": n_section})["bubbles"].append(b)
             curr_b = b
-
+        
         # cv2.imwrite(os.path.join(angle_dir, f"DAPAN_{n_section}.jpg"), crop)
         n_section += 1
         group_i += 1
     # print("Number of group: ", len(groups))
     result = ["?"] * len(groups) * 10 # Mỗi group có 10 câu
-    for b_i, bubbles in groups.items():
+    for b_i, group in groups.items():
+        bubbles = group["bubbles"]
         min_x, min_y, max_x, max_y = get_bubble_rect(bubbles[0])
         for b in bubbles:
             x1, y1, x2, y2 = get_bubble_rect(b)
@@ -265,19 +266,19 @@ def read_answer(answers_region):
             for j in range(4):
                 if mat[i][j]:
                     result[b_i * 10 + i] = str(j)
-    return result
+    return result, groups
 
 def is_region_correct(sbd_region, made_region, answer_region):
     if len(sbd_region) != 1:
-        print("Số lượng khu vực SBD không phải là 1")
+        # print("Số lượng khu vực SBD không phải là 1")
         return False
 
     if len(made_region) != 1:
-        print("Số lượng khu vực Ma De không phải là 1")
+        # print("Số lượng khu vực Ma De không phải là 1")
         return False
 
     if len(answer_region) == 0:
-        print("Số lượng khu vực Dap An là 0")
+        # print("Số lượng khu vực Dap An là 0")
         return False
 
     def get_priority(region):
@@ -285,11 +286,11 @@ def is_region_correct(sbd_region, made_region, answer_region):
         return first_box["box"][0] + first_box["box"][1]
 
     if not(get_priority(sbd_region) < get_priority(made_region) < get_priority(answer_region)):
-        print("Thứ tự các vùng không hợp lệ")
+        # print("Thứ tự các vùng không hợp lệ")
         return False
 
     if abs(sbd_region[0]["box"][1] - made_region[0]["box"][1]) > abs(sbd_region[0]["box"][0] - made_region[0]["box"][0]):
-        print("Thứ tự các vùng không hợp lệ")
+        # print("Thứ tự các vùng không hợp lệ")
         return False
     
     return True
@@ -299,7 +300,7 @@ class No_Le_AI:
         pass
 
     def process(self, image_path):
-        # clear_output_dir(OUT_DIR)
+        clear_output_dir(OUT_DIR)
 
         img0 = cv2.imread(image_path)
         if img0 is None:
@@ -311,10 +312,8 @@ class No_Le_AI:
             angle = (k * 90) % 360
             # print("angle: ", angle)
             img_rot = rotate_by_90(img0, k)
-
-            angle_dir = os.path.join(OUT_DIR, f"angle_{angle:03d}")
-            # os.makedirs(angle_dir, exist_ok=True)
-            # cv2.imwrite(os.path.join(angle_dir, "full.jpg"), img_rot)
+            img_out = img_rot.copy()
+            cv2.imwrite(os.path.join(OUT_DIR, "before.jpg"), img_rot)
 
             det = region_model(img_rot, verbose=False)[0]
             regions = {}
@@ -331,16 +330,16 @@ class No_Le_AI:
             if not is_region_correct(sbd_region, made_region, answers_region):
                 continue
             
-            sbd  = read_sbd(sbd_region[0]["crop"].copy())
+            sbd, sbd_bubbles  = read_sbd(sbd_region[0]["crop"].copy())
             # if sbd:
             #     print("Số báo danh: ", sbd)
 
-            made  = read_made(made_region[0]["crop"].copy())
+            made, made_bubbles  = read_made(made_region[0]["crop"].copy())
             # if made:
             #     print("Mã đề: ", made)
 
             answers_region = sorted(answers_region, key=lambda e: e["box"][1])
-            answers  = read_answer(answers_region)
+            answers, answers_groups  = read_answer(answers_region)
             answers_dict = {}
             if answers:
                 answers_dict = {
@@ -354,5 +353,20 @@ class No_Le_AI:
                 "made": made,
                 "answers": answers_dict,
             }
-            
+            # Vẽ bounding box
+            for b in sbd_bubbles:
+                x1, y1, x2, y2 = get_bubble_rect(b)
+                cv2.rectangle(img_out, (x1 + sbd_region[0]["box"][0], y1 + sbd_region[0]["box"][1]), 
+                                     (x2 + sbd_region[0]["box"][0], y2 + sbd_region[0]["box"][1]), BUBBLE_COLOR.get(b["class"]), 1)
+            for b in made_bubbles:
+                x1, y1, x2, y2 = get_bubble_rect(b)
+                cv2.rectangle(img_out, (x1 + made_region[0]["box"][0], y1 + made_region[0]["box"][1]), 
+                                     (x2 + made_region[0]["box"][0], y2 + made_region[0]["box"][1]), BUBBLE_COLOR.get(b["class"]), 1)
+            for group in answers_groups.values():
+                region = answers_region[group["section"] -1]
+                for b in group["bubbles"]:
+                    x1, y1, x2, y2 = get_bubble_rect(b)
+                    cv2.rectangle(img_out, (x1 + region["box"][0], y1 + region["box"][1]), 
+                                         (x2 + region["box"][0], y2 + region["box"][1]), BUBBLE_COLOR.get(b["class"]), 1)
+            cv2.imwrite(os.path.join(OUT_DIR, "after.jpg"), img_out)
             return result_json

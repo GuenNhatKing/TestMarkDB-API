@@ -43,6 +43,7 @@ class ExamineeRecord(models.Model):
     examinee_code = models.CharField(max_length=6)
     score = models.FloatField(null=True)
     img_before_process = models.CharField(max_length=255, null=True)
+    img_after_process = models.CharField(max_length=255, null=True)
     
     def __str__(self):
         return f"{self.examinee.name} - {self.exam.name}: {self.score}"

@@ -105,8 +105,9 @@ def send_otp(receiver, otp_code):
 
     print(f"OTP was sent for email: {receiver}!")
 
-def upload_image(file):
-    file_name = randomX.randomFileName()
+def upload_image(file, file_name=None):
+    if not file_name:
+        file_name = randomX.randomFileName()
     ext = os.path.splitext(file.name)[1]
     file.name = file_name + ext
     s3Image.upload_objfile(b2=s3Image.b2, bucket=s3Image.BUCKET_NAME, fileobj=file)
@@ -142,5 +143,10 @@ def process_image(local_name):
     download_file(local_name, local_name) 
     ai = No_Le_AI()
     result = ai.process(str(s3Image.BASE_DIR / "temporary" / local_name))
+    # Tải ảnh sau khi xử lý ở BASE_DIR / AI / out / after.jpg lên S3
+    out_image_path = s3Image.BASE_DIR / "AI" / "out" / "after.jpg"
+    out_image_name = "processed_" + local_name
+    upload_image(open(out_image_path, "rb"), file_name=out_image_name)
+    result["processed_image"] = out_image_name
     remove_temporary_file(local_name)
     return result
