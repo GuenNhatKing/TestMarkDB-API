@@ -29,7 +29,7 @@ TestMarkDB API is a backend system that supports managing exams, test papers, ca
 
 ---
 
-## 🔧 **Main Features**
+## ✨ **Main Features**
 
 - Manage exam-related data (Exam, ExamPaper, ExamAnswer, Examinee, ExamineeRecord).
 - AI pipeline that processes answer sheet images and produces selected-answer results.
@@ -179,6 +179,8 @@ Additional notes:
 
 ## 🤝 Contributing
 All contributions are welcome! Please create issues or pull requests.
+
+---
 
 ## 📝 License
 This project is licensed under the [MIT License](LICENSE).
