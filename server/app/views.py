@@ -116,7 +116,7 @@ class ExamineeResultViewSet(viewsets.ReadOnlyModelViewSet):
         examineeRecord = self.kwargs.get('examinee_record_pk')
         return ExamineeRecord.objects.filter(pk=examineeRecord)
 
-class SendOTPForVerify(APIView):
+class SendOTPForVerifyView(APIView):
     permission_classes = [AllowAny]
     def post(self, request):
         serializer = SendOTPForVerifySerializer(data=request.data)
@@ -148,7 +148,7 @@ class SendOTPForVerify(APIView):
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
-class VerifyOTP(APIView):
+class VerifyOTPView(APIView):
     permission_classes = [AllowAny]
     def post(self, request):
         serializer = OTPVerifySerializer(data=request.data)
@@ -177,7 +177,7 @@ class VerifyOTP(APIView):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-class VerifyEmail(APIView):
+class VerifyEmailView(APIView):
     permission_classes = [AllowAny]
     def post(self, request):
         serializer = EmailVerifySerializer(data=request.data)
@@ -195,7 +195,7 @@ class VerifyEmail(APIView):
         action_request.delete()
         return Response({"detail": "Xác thực email thành công"}, status=status.HTTP_200_OK)
 
-class ChangePassword(APIView):
+class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated, IsVerificated]
     def post(self, request):
         serializer = ChangePasswordSerializer(data=request.data)
@@ -212,7 +212,7 @@ class ChangePassword(APIView):
         user.save()
         return Response({"detail": "Đổi mật khẩu thành công"}, status=status.HTTP_200_OK)
 
-class PasswordReset(APIView):   
+class PasswordResetView(APIView):   
     permission_classes = [AllowAny]
     def post(self, request):
         serializer = PasswordResetSerializer(data=request.data)
@@ -231,7 +231,7 @@ class PasswordReset(APIView):
         action_request.delete()
         return Response({"detail": "Đặt lại mật khẩu thành công"}, status=status.HTTP_200_OK)
 
-class CameraStream(APIView):
+class CameraStreamView(APIView):
     permission_classes = [AllowAny]
     def mjpeg_generator(self, id):
         while True:
@@ -261,7 +261,7 @@ class CameraStream(APIView):
         update_camera_stream(id, data, ts)
         return Response({"ok": True, "id": id, "timestamp": ts}, status=status.HTTP_200_OK)
 
-class ImageProcess(APIView):
+class ImageProcessView(APIView):
     def post(self, request):
         imageProcessSerializer = ImageProcessSerializer(data=request.data)
         imageProcessSerializer.is_valid(raise_exception=True)
@@ -286,7 +286,7 @@ class ImageProcess(APIView):
         
         return Response(result, status=200)
     
-class ImageProcessSave(APIView):
+class ImageProcessSaveView(APIView):
     def post(self, request):
         # Nhận result của ImageProcess (sau khi client xác nhận và chỉnh sửa nếu cần)
         serializer = ImageProcessSaveSerializer(data=request.data)

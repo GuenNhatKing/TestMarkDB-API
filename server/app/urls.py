@@ -22,15 +22,15 @@ exam_record_router.register('ExamineeRecords', ExamineeRecordViewSet, basename='
 urlpatterns = [
     path("api/Register/", RegisterView.as_view(), name="Register"),
     
-    path("api/SendOTPForVerify/", SendOTPForVerify.as_view(), name="SendOTPForVerify"),
-    path("api/VerifyOTP/", VerifyOTP.as_view(), name="VerifyOTP"),
-    path("api/VerifyEmail/", VerifyEmail.as_view(), name="VerifyEmail"),
-    path("api/ChangePassword/", ChangePassword.as_view(), name="ChangePassword"),
-    path("api/PasswordReset/", PasswordReset.as_view(), name="PasswordReset"),
+    path("api/SendOTPForVerify/", SendOTPForVerifyView.as_view(), name="SendOTPForVerify"),
+    path("api/VerifyOTP/", VerifyOTPView.as_view(), name="VerifyOTP"),
+    path("api/VerifyEmail/", VerifyEmailView.as_view(), name="VerifyEmail"),
+    path("api/ChangePassword/", ChangePasswordView.as_view(), name="ChangePassword"),
+    path("api/PasswordReset/", PasswordResetView.as_view(), name="PasswordReset"),
     
-    path("api/CameraStream/<str:id>/", CameraStream.as_view(), name="CameraStream"),
-    path("api/ImageProcess/", ImageProcess.as_view(), name="ImageProcess"),
-    path("api/ImageProcessSave/", ImageProcessSave.as_view(), name="ImageProcessSave"),
+    path("api/CameraStream/<str:id>/", CameraStreamView.as_view(), name="CameraStream"),
+    path("api/ImageProcess/", ImageProcessView.as_view(), name="ImageProcess"),
+    path("api/ImageProcessSave/", ImageProcessSaveView.as_view(), name="ImageProcessSave"),
     path("api/Examinee/<int:examinee_id>/RecordsDetail/", ExamineeRecordDetailView.as_view(), name="ExamineeRecordDetail"),
     path("api/ExamineeRecords/<int:examinee_record_pk>/Result/", ExamineeResultViewSet.as_view({'get': 'list'}), name="ExamineeResult"),
     path("api/ExamPapers/<int:exam_paper_pk>/BatchAnswer/", ExamPaperBatchAnswerView.as_view(), name="ExamPaperBatchAnswer"),
