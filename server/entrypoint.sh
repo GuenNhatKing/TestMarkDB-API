@@ -2,6 +2,7 @@
 set -e
 
 cd /app/server
+python manage.py collectstatic --noinput
 
 if [ "$PROD" = "true" ]; then
   if [ "$RUN_APP" = "true" ]; then
