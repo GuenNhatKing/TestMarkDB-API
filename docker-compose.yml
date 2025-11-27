@@ -34,7 +34,7 @@ services:
     restart: unless-stopped
     environment:
       - DJANGO_SETTINGS_MODULE=root.settings
-    command: ["celery", "-A", "root", "worker", "--loglevel=INFO", "--pool=threads"]    
+    command: ["celery", "-A", "root", "worker", "--loglevel=INFO"]    
     env_file:
       - ./.env
     volumes:
