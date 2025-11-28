@@ -2,12 +2,11 @@
 set -e
 
 cd /app/server
-python manage.py collectstatic --noinput
-
 if [ "$PROD" = "true" ]; then
   echo "Running in production mode"
   if [ "$RUN_APP" = "true" ]; then
     echo "Starting uWSGI application server"
+    python manage.py collectstatic --noinput
     exec uwsgi --ini ./uwsgi.ini
   elif [ "$RUN_CELERY" = "true" ]; then
     echo "Starting Celery worker"
@@ -18,5 +17,6 @@ if [ "$PROD" = "true" ]; then
   fi
 else
   echo "Running in development mode"
+  python manage.py collectstatic --noinput
   exec "$@"
 fi
