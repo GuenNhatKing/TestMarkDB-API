@@ -9,7 +9,7 @@ if [ "$PROD" = "true" ]; then
     exec uwsgi --ini ./uwsgi.ini
   elif [ "$RUN_CELERY" = "true" ]; then
     echo "Starting Celery worker"
-    exec celery -A root worker --loglevel=INFO
+    exec celery -A root worker --loglevel=INFO --pool=threads
   else
     echo "No valid RUN_APP or RUN_CELERY flag set. Exiting."
     exit 1
@@ -22,7 +22,7 @@ else
     exec uwsgi --ini ./uwsgi.ini
   elif [ "$@" = "RUN_CELERY" ]; then
     echo "Starting Celery worker"
-    exec celery -A root worker --loglevel=INFO
+    exec celery -A root worker --loglevel=INFO --pool=threads
   else
     echo "No valid RUN_APP or RUN_CELERY flag set. Exiting."
     exit 1
