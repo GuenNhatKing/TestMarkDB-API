@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -e
-
 cd /app/server
+echo "Starting entrypoint script"
+
 if [ "$PROD" = "true" ]; then
   echo "Running in production mode"
   if [ "$RUN_APP" = "true" ]; then
