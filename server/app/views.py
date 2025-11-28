@@ -9,8 +9,9 @@ from .tasks import *
 from app import randomX
 from datetime import datetime, timedelta
 import time
-from django.http import Http404, StreamingHttpResponse
+from django.http import Http404, StreamingHttpResponse, HttpResponse
 from django.db import transaction
+from django.core.cache import cache
 
 class RegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
@@ -247,10 +248,11 @@ class CameraStreamView(APIView):
             time.sleep(1) # 1 FPS
 
     def get(self, request, id):
-        return StreamingHttpResponse(
-            self.mjpeg_generator(id),
-            content_type="multipart/x-mixed-replace; boundary=testmarkdb"
-        )
+        # return StreamingHttpResponse(
+        #     self.mjpeg_generator(id),
+        #     content_type="multipart/x-mixed-replace; boundary=testmarkdb"
+        # )
+        return HttpResponse(cache.get(key_value_data(id)), content_type="image/jpeg")
     
     def put(self, request, id):
         serializer = CameraStreamSerializer(data=request.data)
