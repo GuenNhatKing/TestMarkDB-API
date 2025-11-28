@@ -108,8 +108,8 @@ def read_sbd(crop):
 
     areas = [(b["box"][2] - b["box"][0]) * (b["box"][3] - b["box"][1]) for b in bubbles]
     med = np.median(areas)
-    if not(med * 0.2 < box_w * box_h < med * 1.8):
-        print(med, box_w * box_h)
+    if not(med * 0.2 < box_w * box_h):
+        # print(med, box_w * box_h)
         return None
 
     mat = [[False for j in range(6)] for i in range(10)]
@@ -168,7 +168,7 @@ def read_made(crop):
 
     areas = [(b["box"][2] - b["box"][0]) * (b["box"][3] - b["box"][1]) for b in bubbles]
     med = np.median(areas)
-    if not(med * 0.2 < box_w * box_h < med * 1.8):
+    if not(med * 0.2 < box_w * box_h):
         return None
 
     mat = [[False for j in range(3)] for i in range(10)]
@@ -251,7 +251,7 @@ def read_answer(answers_region):
 
         areas = [(b["box"][2] - b["box"][0]) * (b["box"][3] - b["box"][1]) for b in bubbles]
         med = np.median(areas)
-        if not(med * 0.2 < box_w * box_h < med * 1.8):
+        if not(med * 0.2 < box_w * box_h):
             return None
 
         mat = [[False for j in range(4)] for i in range(10)]
@@ -266,6 +266,7 @@ def read_answer(answers_region):
             for j in range(4):
                 if mat[i][j]:
                     result[b_i * 10 + i] = str(j)
+
     return result, groups
 
 def is_region_correct(sbd_region, made_region, answer_region):
@@ -306,8 +307,6 @@ class No_Le_AI:
         if img0 is None:
             raise FileNotFoundError(f"Không tìm thấy ảnh: {image_path}")
         
-        angle_infos = []
-        best_info = None
         for k in range(4):
             angle = (k * 90) % 360
             # print("angle: ", angle)
@@ -339,7 +338,7 @@ class No_Le_AI:
             #     print("Mã đề: ", made)
 
             answers_region = sorted(answers_region, key=lambda e: e["box"][1])
-            answers, answers_groups  = read_answer(answers_region)
+            answers, answers_groups = read_answer(answers_region)
             answers_dict = {}
             if answers:
                 answers_dict = {
