@@ -29,6 +29,7 @@ urlpatterns = [
     path("api/PasswordReset/", PasswordResetView.as_view(), name="PasswordReset"),
     
     path("api/CameraStream/<str:id>/", CameraStreamView.as_view(), name="CameraStream"),
+    path("api/CameraStreamImage/<str:id>/", CameraStreamImageView.as_view(), name="CameraStreamImage"),
     path("api/ImageProcess/", ImageProcessView.as_view(), name="ImageProcess"),
     path("api/ImageProcessSave/", ImageProcessSaveView.as_view(), name="ImageProcessSave"),
     path("api/Examinee/<int:examinee_id>/RecordsDetail/", ExamineeRecordDetailView.as_view(), name="ExamineeRecordDetail"),

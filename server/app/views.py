@@ -248,10 +248,14 @@ class CameraStreamView(APIView):
             time.sleep(1) # 1 FPS
 
     def get(self, request, id):
-        # return StreamingHttpResponse(
-        #     self.mjpeg_generator(id),
-        #     content_type="multipart/x-mixed-replace; boundary=testmarkdb"
-        # )
+        return StreamingHttpResponse(
+            self.mjpeg_generator(id),
+           content_type="multipart/x-mixed-replace; boundary=testmarkdb"
+        ) 
+
+class CameraStreamImageView(APIView):
+    permission_classes = [AllowAny]
+    def get(self, request, id):
         return HttpResponse(cache.get(key_value_data(id)), content_type="image/jpeg")
     
     def put(self, request, id):
