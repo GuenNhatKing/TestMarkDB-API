@@ -253,11 +253,6 @@ class CameraStreamView(APIView):
            content_type="multipart/x-mixed-replace; boundary=testmarkdb"
         ) 
 
-class CameraStreamImageView(APIView):
-    permission_classes = [AllowAny]
-    def get(self, request, id):
-        return HttpResponse(cache.get(key_value_data(id)), content_type="image/jpeg")
-    
     def put(self, request, id):
         serializer = CameraStreamSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -267,6 +262,11 @@ class CameraStreamImageView(APIView):
         update_camera_stream(id, data, ts)
         return Response({"ok": True, "id": id, "timestamp": ts}, status=status.HTTP_200_OK)
 
+class CameraStreamImageView(APIView):
+    permission_classes = [AllowAny]
+    def get(self, request, id):
+        return HttpResponse(cache.get(key_value_data(id)), content_type="image/jpeg")
+    
 class ImageProcessView(APIView):
     def post(self, request):
         imageProcessSerializer = ImageProcessSerializer(data=request.data)
